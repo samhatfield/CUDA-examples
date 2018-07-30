@@ -4,10 +4,11 @@ LIB	:= -L$(CUDA_HOME)/lib64
 
 NVCCFLAGS	:= -lineinfo -arch=sm_35 --ptxas-options=-v --use_fast_math
 
-all: main
+double:	main.cu Makefile
+	nvcc main.cu -o main $(INC) $(NVCCFLAGS) $(LIB) -DPREC=double
 
-main:	main.cu Makefile
-	nvcc main.cu -o main $(INC) $(NVCCFLAGS) $(LIB)
+single:	main.cu Makefile
+	nvcc main.cu -o main $(INC) $(NVCCFLAGS) $(LIB) -DPREC=float
 
 clean:
 	rm -f main
