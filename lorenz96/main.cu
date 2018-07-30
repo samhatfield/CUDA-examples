@@ -2,6 +2,9 @@
 #include <helper_cuda.h>
 #include <stdlib.h>
 
+// Compile time constants
+#define HALF (PREC)0.5
+
 // Dimension of model
 __constant__ int N;
 
@@ -42,7 +45,7 @@ __global__ void step(PREC* __restrict__ in, PREC* __restrict__ out) {
         k2 = dXdT(in[shft(tid,-2)], in[shft(tid,-1)], in[tid], in[shft(tid,1)]);
 
         // Get local state
-        out[tid] = in[tid] + 0.5*dt*(k2 - k1);
+        out[tid] = in[tid] + HALF*dt*(k2 - k1);
     }
 }
 
