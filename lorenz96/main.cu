@@ -4,9 +4,10 @@
 
 // Compile time constants
 #define HALF (PREC)0.5
-
-// Dimension of model
-__constant__ int N;
+#define ONE (PREC)1.0
+#define TWO (PREC)2.0
+#define SIX (PREC)6.0
+#define N 512
 
 // Timestep
 __constant__ PREC dt;
@@ -29,64 +30,72 @@ __global__ void step(PREC* __restrict__ in, PREC* __restrict__ out) {
     // Get global thread ID
     int tid = threadIdx.x + blockDim.x*blockIdx.x;
 
+    // Shared work array
+    __shared__ PREC work[N];
+
     // Intermediate steps
-    PREC k1, k2;
+    PREC k1, k2, k3, k4;
 
     if (tid < N) {
         // Compute k1
         k1 = dXdT(in[shft(tid,-2)], in[shft(tid,-1)], in[tid], in[shft(tid,1)]);
-
-        // Add h*k1 to step
-        in[tid] += dt*k1;
-
+        work[tid] = in[tid] + HALF*dt*k1;
         __syncthreads();
 
         // Compute k2
-        k2 = dXdT(in[shft(tid,-2)], in[shft(tid,-1)], in[tid], in[shft(tid,1)]);
+        k2 = dXdT(work[shft(tid,-2)], work[shft(tid,-1)], work[tid], work[shft(tid,1)]);
+        work[tid] = in[tid] + HALF*dt*k2;
+        __syncthreads();
 
-        // Get local state
-        out[tid] = in[tid] + HALF*dt*(k2 - k1);
+        // Compute k3
+        k3 = dXdT(work[shft(tid,-2)], work[shft(tid,-1)], work[tid], work[shft(tid,1)]);
+        work[tid] = in[tid] + dt*k3;
+        __syncthreads();
+
+        // Compute k4
+        k4 = dXdT(work[shft(tid,-2)], work[shft(tid,-1)], work[tid], work[shft(tid,1)]);
+
+        // Step forwards
+        out[tid] = in[tid] + (ONE/SIX)*dt*(k1 + TWO*k2 + TWO*k3 + k4);
     }
 }
 
 int main(int argc, const char **argv) {
     // Simulation parameters
-    int h_N = 40;
     PREC h_dt = 0.05;
-    PREC h_F = 10.0;
-    int length = 1000;
+    PREC h_F = 8.0;
+    int length = 5000;
 
     // Storage vectors
     PREC *h_state, *h_hist, *d_prev, *d_next, *d_temp;
 
     // Kernel parameters
-    int nThreadsPerBlock = 64;
-    int nBlocks = 1 + ((h_N - 1)/nThreadsPerBlock);
+    int nThreadsPerBlock = N;
+    int nBlocks = 1;
 
     // Initialise card
     findCudaDevice(argc, argv);
 
     // Move global constants to device
-    checkCudaErrors(cudaMemcpyToSymbol(N, &h_N, sizeof(h_N)));
     checkCudaErrors(cudaMemcpyToSymbol(dt, &h_dt, sizeof(h_dt)));
     checkCudaErrors(cudaMemcpyToSymbol(F, &h_F, sizeof(h_F)));
 
     // Allocate memory on host and device
-    h_state = (PREC *)malloc(sizeof(PREC)*h_N);
+    h_state = (PREC *)malloc(sizeof(PREC)*N);
     h_hist  = (PREC *)malloc(sizeof(PREC)*length);
 
-    checkCudaErrors(cudaMalloc((void **)&d_prev, sizeof(PREC)*h_N));
-    checkCudaErrors(cudaMalloc((void **)&d_next, sizeof(PREC)*h_N));
+    checkCudaErrors(cudaMalloc((void **)&d_prev, sizeof(PREC)*N));
+    checkCudaErrors(cudaMalloc((void **)&d_next, sizeof(PREC)*N));
 
     // Set initial conditions
-    for (int i = 0; i < h_N; i++) {
+    for (int i = 0; i < N; i++) {
         h_state[i] = (PREC)rand()/RAND_MAX;
     }
 
     printf("%f %f\n", h_state[0], h_state[1]);
 
     // Copy initial conditions to device
-    checkCudaErrors(cudaMemcpy(d_prev, h_state, sizeof(PREC)*h_N, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(d_prev, h_state, sizeof(PREC)*N, cudaMemcpyHostToDevice));
 
     // Set initial condition in history array
     h_hist[0] = h_state[0];
@@ -108,7 +117,7 @@ int main(int argc, const char **argv) {
     }
 
     // Copy back results
-    checkCudaErrors(cudaMemcpy(h_state, d_next, sizeof(PREC)*h_N,cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaMemcpy(h_state, d_next, sizeof(PREC)*N,cudaMemcpyDeviceToHost));
 
     // Free up memory
     free(h_state);
