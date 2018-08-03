@@ -1,7 +1,8 @@
 #include "params.h"
 
 // ODE device function
-__device__ PREC dXdT(PREC x__2, PREC x__1, PREC x, PREC x_1) {
+template <typename T>
+__device__ T dXdT(T x__2, T x__1, T x, T x_1) {
     return (x_1 - x__2)*x__1 - x + F;
 }
 
@@ -11,15 +12,16 @@ __device__ int shft(int n, int m) {
 }
 
 // Main step kernel function
-__global__ void step(PREC* __restrict__ in, PREC* __restrict__ out) {
+template <typename T>
+__global__ void step(T* __restrict__ in, T* __restrict__ out) {
     // Get global thread ID
     int tid = threadIdx.x + blockDim.x*blockIdx.x;
 
     // Shared work array
-    __shared__ PREC work[N];
+    __shared__ T work[N];
 
     // Intermediate steps
-    PREC k1, k2, k3, k4;
+    T k1, k2, k3, k4;
 
     if (tid < N) {
         // Compute k1
