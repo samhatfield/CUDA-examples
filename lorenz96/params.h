@@ -6,3 +6,4 @@
 #define F (PREC)8.0
 #define DT (PREC)0.05
 #define N 512
+#define LEN 5000

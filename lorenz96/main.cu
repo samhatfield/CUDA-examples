@@ -18,9 +18,6 @@
 #endif
 
 int main(int argc, const char **argv) {
-    // Simulation parameters
-    int length = 5000;
-
     // Storage vectors
     double *h_hist;
     PREC *h_state, *d_prev, *d_next, *d_temp;
@@ -34,7 +31,7 @@ int main(int argc, const char **argv) {
 
     // Allocate memory on host and device
     h_state = (PREC *)malloc(sizeof(PREC)*N);
-    h_hist  = (double *)malloc(sizeof(double)*length);
+    h_hist  = (double *)malloc(sizeof(double)*LEN);
 
     checkCudaErrors(cudaMalloc((void **)&d_prev, sizeof(PREC)*N));
     checkCudaErrors(cudaMalloc((void **)&d_next, sizeof(PREC)*N));
@@ -53,7 +50,7 @@ int main(int argc, const char **argv) {
     // Run forecast
     printf("Running forecast with %d blocks and %d threads per block\n", nBlocks, nThreadsPerBlock);
     printf("%.12f\n", h_hist[0]);
-    for (int i = 1; i < length; i++) {
+    for (int i = 1; i < LEN; i++) {
         // Step forward once
         step<<<nBlocks, nThreadsPerBlock>>>(d_prev, d_next);
         getLastCudaError("step execution failed\n");
