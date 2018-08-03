@@ -6,21 +6,10 @@
 #include "device.h"
 #include "params.h"
 
-#if TYPE == 0
-#define CONVERTTODEVTYPE(X) X
-#define CONVERTBACK(X) X
-#elif TYPE == 1
-#define CONVERTTODEVTYPE(X) (float)X
-#define CONVERTBACK(X) (double)X
-#elif TYPE == 2
-#define CONVERTTODEVTYPE(X) approx_float_to_half(X)
-#define CONVERTBACK(X) (double)half_to_float(X)
-#endif
-
 int main(int argc, const char **argv) {
     // Storage vectors
     double *h_hist;
-    PREC *h_state, *d_prev, *d_next, *d_temp;
+    half *h_state, *d_prev, *d_next, *d_temp;
 
     // Kernel parameters
     int nThreadsPerBlock = N;
@@ -36,22 +25,22 @@ int main(int argc, const char **argv) {
     findCudaDevice(argc, argv);
 
     // Allocate memory on host and device
-    h_state = (PREC *)malloc(sizeof(PREC)*N);
+    h_state = (half *)malloc(sizeof(half)*N);
     h_hist  = (double *)malloc(sizeof(double)*LEN);
 
-    checkCudaErrors(cudaMalloc((void **)&d_prev, sizeof(PREC)*N));
-    checkCudaErrors(cudaMalloc((void **)&d_next, sizeof(PREC)*N));
+    checkCudaErrors(cudaMalloc((void **)&d_prev, sizeof(half)*N));
+    checkCudaErrors(cudaMalloc((void **)&d_next, sizeof(half)*N));
 
     // Set initial conditions
     for (int i = 0; i < N; i++) {
-        h_state[i] = CONVERTTODEVTYPE((double)rand()/RAND_MAX);
+        h_state[i] = approx_float_to_half((float)rand()/RAND_MAX);
     }
 
     // Copy initial conditions to device
-    checkCudaErrors(cudaMemcpy(d_prev, h_state, sizeof(PREC)*N, cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(d_prev, h_state, sizeof(half)*N, cudaMemcpyHostToDevice));
 
     // Set initial condition in history array
-    h_hist[0] = CONVERTBACK(h_state[0]);
+    h_hist[0] = (double)half_to_float(h_state[0]);
 
     // Run forecast
     printf("Running forecast with %d blocks and %d threads per block\n", nBlocks, nThreadsPerBlock);
@@ -63,8 +52,8 @@ int main(int argc, const char **argv) {
         getLastCudaError("step execution failed\n");
 
         // Store one variable
-        checkCudaErrors(cudaMemcpy(&h_state[0], &d_next[0], sizeof(PREC), cudaMemcpyDeviceToHost));
-        h_hist[i] = CONVERTBACK(h_state[0]);
+        checkCudaErrors(cudaMemcpy(&h_state[0], &d_next[0], sizeof(half), cudaMemcpyDeviceToHost));
+        h_hist[i] = (double)half_to_float(h_state[0]);
 
         printf("%.12f\n", h_hist[i]);
 
