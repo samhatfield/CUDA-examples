@@ -2,12 +2,22 @@
 #define PARAMS_H
 
 // Compile time constants
-#define HALF (PREC)0.5
-#define ONE (PREC)1.0
-#define TWO (PREC)2.0
-#define SIX (PREC)6.0
-#define F (PREC)8.0
-#define DT (PREC)0.05
+#if TYPE == 0
+#define HALF 0.5
+#define ONE 1.0
+#define TWO 2.0
+#define SIX 6.0
+#define F 8.0
+#define DT 0.05
+#else
+#define HALF 0.5f
+#define ONE 1.0f
+#define TWO 2.0f
+#define SIX 6.0f
+#define F 8.0f
+#define DT 0.05f
+#endif
+
 #define N 512
 #define LEN 5000
 

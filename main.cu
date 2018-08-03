@@ -1,21 +1,8 @@
 #include <stdio.h>
 #include <helper_cuda.h>
 #include <stdlib.h>
-#include <cuda_fp16.h>
-#include "fp16_conversion.h"
 #include "device.h"
 #include "params.h"
-
-#if TYPE == 0
-#define CONVERTTODEVTYPE(X) X
-#define CONVERTBACK(X) X
-#elif TYPE == 1
-#define CONVERTTODEVTYPE(X) (float)X
-#define CONVERTBACK(X) (double)X
-#elif TYPE == 2
-#define CONVERTTODEVTYPE(X) approx_float_to_half(X)
-#define CONVERTBACK(X) (double)half_to_float(X)
-#endif
 
 int main(int argc, const char **argv) {
     // Storage vectors
@@ -44,14 +31,14 @@ int main(int argc, const char **argv) {
 
     // Set initial conditions
     for (int i = 0; i < N; i++) {
-        h_state[i] = CONVERTTODEVTYPE((double)rand()/RAND_MAX);
+        h_state[i] = (PREC)rand()/RAND_MAX;
     }
 
     // Copy initial conditions to device
     checkCudaErrors(cudaMemcpy(d_prev, h_state, sizeof(PREC)*N, cudaMemcpyHostToDevice));
 
     // Set initial condition in history array
-    h_hist[0] = CONVERTBACK(h_state[0]);
+    h_hist[0] = (double)h_state[0];
 
     // Run forecast
     printf("Running forecast with %d blocks and %d threads per block\n", nBlocks, nThreadsPerBlock);
@@ -64,7 +51,7 @@ int main(int argc, const char **argv) {
 
         // Store one variable
         checkCudaErrors(cudaMemcpy(&h_state[0], &d_next[0], sizeof(PREC), cudaMemcpyDeviceToHost));
-        h_hist[i] = CONVERTBACK(h_state[0]);
+        h_hist[i] = (double)h_state[0];
 
         printf("%.12f\n", h_hist[i]);
 

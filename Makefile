@@ -9,8 +9,5 @@ double:	main.cu Makefile
 single:	main.cu Makefile
 	nvcc main.cu -o main $(INC) $(NVCCFLAGS) $(LIB) -DPREC=float -DTYPE=1
 
-half:	main.cu Makefile
-	nvcc main.cu -o main $(INC) $(NVCCFLAGS) $(LIB) -DPREC=half -DTYPE=2
-
 clean:
 	rm -f main
