@@ -26,6 +26,12 @@ int main(int argc, const char **argv) {
     int nThreadsPerBlock = N;
     int nBlocks = 1;
 
+    // Initialise CUDA timing
+    float milli;
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
     // Initialise card
     findCudaDevice(argc, argv);
 
@@ -50,6 +56,7 @@ int main(int argc, const char **argv) {
     // Run forecast
     printf("Running forecast with %d blocks and %d threads per block\n", nBlocks, nThreadsPerBlock);
     printf("%.12f\n", h_hist[0]);
+    cudaEventRecord(start);
     for (int i = 1; i < LEN; i++) {
         // Step forward once
         step<<<nBlocks, nThreadsPerBlock>>>(d_prev, d_next);
@@ -64,6 +71,11 @@ int main(int argc, const char **argv) {
         // Swap prev and next pointers
         d_temp = d_prev; d_prev = d_next; d_next = d_temp;
     }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&milli, start, stop);
+
+    printf("Forecast took %f ms to execute\n", milli);
 
     // Free up memory
     free(h_hist);
